@@ -12,6 +12,8 @@ OUT = os.path.join(ROOT, "PES2UG24CS579_DBMS_Report_Venkata_Srivaibhav_Nukaraju.
 SCRATCH = sys.argv[1] if len(sys.argv) > 1 else "/tmp"
 FONT = "Quicksand Medium"
 TITLE = "Food Waste Redistribution Platform"
+TEAMMATE = ("Vaishnavi Goyal", "PES2UG24CS571")
+GUIDE = "Nivedita Kasturi"
 SS = os.path.join(HERE, "screenshots")
 FIG = os.path.join(HERE, "figures")
 UI = os.path.join(ROOT, "docs", "screenshots")
@@ -32,6 +34,40 @@ ABSTRACT = [
 ]
 
 CH = []  # (chapter title, [(subsection title, [blocks])])
+
+
+def dictionary():
+    sql = open(os.path.join(ROOT, "docs", "schema.sql")).read()
+    rows = [("Table", "Column", "Type", "Null", "Key / constraint")]
+    for name, body in re.findall(r"CREATE TABLE (\w+) \((.*?)\n\) ENGINE", sql, re.S):
+        pk = set(re.findall(r"(\w+) BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY", body))
+        m = re.search(r"PRIMARY KEY \(([^)]*)\)", body.replace("AUTO_INCREMENT PRIMARY KEY", ""))
+        if m:
+            pk |= {c.strip() for c in m.group(1).split(",")}
+        fks = dict((c, f"{t}.{r}" + (", ON DELETE SET NULL" if d == "SET NULL" else ""))
+                   for c, t, r, d in re.findall(r"FOREIGN KEY \((\w+)\) REFERENCES (\w+) \((\w+)\)\s+ON DELETE (SET NULL|RESTRICT)", body))
+        uq = [c.split(", ") for c in re.findall(r"UNIQUE \(([^)]*)\)", body)]
+        chk = re.findall(r"CHECK \((\w+)", body)
+        for l in body.split("\n"):
+            l = l.strip().rstrip(",")
+            m = re.match(r"(\w+) ((?:BIGINT UNSIGNED|VARCHAR\(\d+\)|DECIMAL\(\d+, \d+\)|DATETIME|BOOLEAN|ENUM\()[^ ]*)", l)
+            if not m or l.startswith(("CONSTRAINT", "PRIMARY", "INDEX")):
+                continue
+            col, typ = m.group(1), m.group(2)
+            if typ.startswith("ENUM("):
+                m = re.search(col + r" ENUM\((.*?)\)([^\n]*)", body, re.S)
+                typ = "ENUM(" + re.sub(r"\s+", " ", m.group(1).replace("'", "")).strip() + ")"
+                l = col + " " + m.group(2)
+            keys = (["PK"] if col in pk else []) + ([f"FK to {fks[col]}"] if col in fks else [])
+            keys += ["UNIQUE" if len(u) == 1 else "UNIQUE (" + ", ".join(u) + ")" for u in uq if col in u]
+            keys += ["CHECK"] if col in chk else []
+            if "DEFAULT" in l:
+                keys.append("default " + l.split("DEFAULT ", 1)[1].split(" ON UPDATE")[0].rstrip(","))
+            rows.append((name, col, re.sub(r"\s+", " ", typ), "No" if "NOT NULL" in l or col in pk else "Yes", "; ".join(keys)))
+    return rows
+
+
+DICTIONARY = dictionary()
 
 
 def chapter(title, *subs):
@@ -79,6 +115,13 @@ chapter("1. INTRODUCTION",
             ("Security", "bcryptjs, jose (JWT), zod", "Password hashing, sessions, input validation"),
             ("Runtime", "Docker Compose", "Runs MySQL and MongoDB with the SQL files loaded on start"),
         ]),
+    ]),
+    ("1.5 DATABASE CHOICE AND JUSTIFICATION", [
+        P("Donations, requests, pickups and deliveries are related records with strict rules between them. "
+          "A relational database enforces such rules with keys, constraints, transactions and triggers, so MySQL holds this data. "
+          "Operational notes differ in shape for each author and need no joins or cross-record rules. "
+          "A document store keeps each note whole without sparse columns, so MongoDB holds the notes. "
+          "No feature searches by similarity, so a vector database adds nothing to this problem."),
     ]),
 )
 
@@ -200,6 +243,10 @@ chapter("4. ER TO RELATIONAL MAPPING",
         P("Every non-key attribute depends on the whole key and on nothing else. Addresses exist once, in locations. "
           "Quantity, expiry and category exist once, in food_batches and food_items, and never in donations. "
           "Remaining capacity, totals and match scores come from views and queries. The schema is therefore in third normal form."),
+    ]),
+    ("4.4 DATA DICTIONARY", [
+        P("The data dictionary lists every column of the 14 tables, as declared in the DDL of chapter 5."),
+        T("Data dictionary", DICTIONARY),
     ]),
 )
 
@@ -370,9 +417,8 @@ chapter("8. STORED PROCEDURES, FUNCTIONS AND TRIGGERS",
         S("test_db", "Database test suite with the concurrent acceptance test"),
     ]),
     ("8.5 MONGODB OPERATIONAL NOTES", [
-        P("Operational notes have a different shape for each author. A pickup note records containers and temperature, and a delivery note records servings. "
-          "In MySQL this needs sparse columns or an entity-attribute-value table, so a document store fits better. "
-          "MySQL still decides who may read or write the notes of a donation. MongoDB holds only references to MySQL ids, never copies of rows."),
+        P("A pickup note records containers and temperature, and a delivery note records servings. "
+          "MySQL decides who may read or write the notes of a donation. MongoDB holds only references to MySQL ids, never copies of rows."),
         T("Collection donation_operational_notes", [
             ("Field", "Type", "Meaning"),
             ("donationId", "int", "Reference to donations.donation_id in MySQL"),
@@ -438,6 +484,26 @@ chapter("9. FRONT END DEVELOPMENT",
     ]),
 )
 
+chapter("10. CONCLUSION AND FUTURE ENHANCEMENTS",
+    ("10.1 CONCLUSION", [
+        P("The platform keeps every redistribution rule inside the database. "
+          "The stored procedure accepts exactly one NGO per donation, also when two restaurants act at the same moment. "
+          "Triggers block illegal status changes and log each change with its actor. "
+          "Views compute every statistic from live rows, so no total goes stale. "
+          "MongoDB holds the notes whose shape varies, while MySQL controls who may read them."),
+    ]),
+    ("10.2 FUTURE ENHANCEMENTS", [
+        T("Future enhancements", [
+            ("Enhancement", "Database work"),
+            ("Automatic expiry", "A MySQL event runs the expiry UPDATE every 15 minutes, still audited by the trigger"),
+            ("Partial acceptance of a batch", "A new relation splits one donation into quantities for several NGOs"),
+            ("Volunteer routing", "A location for each volunteer, and pickups ranked with fn_haversine_km"),
+            ("Notifications", "An outbox table filled by a trigger and read by a background worker"),
+            ("Trend reports", "Monthly summary tables refreshed from the existing views"),
+        ]),
+    ]),
+)
+
 REFERENCES = [
     "R. Elmasri and S. B. Navathe, Fundamentals of Database Systems, 7th ed. Pearson, 2016. Chapter 9: Relational Database Design by ER-to-Relational Mapping.",
     "Oracle, MySQL 8.0 Reference Manual. https://dev.mysql.com/doc/refman/8.0/en/",
@@ -466,12 +532,11 @@ APPENDIX = [
 REPL = {
     "TITLE": TITLE.upper(),
     "T. Lohith Srinivas": "Venkata Srivaibhav Nukaraju",
-    "fghdfjjkshjdhs": "<Team member name>",
-    "Dr. Shilpa S": "<Guide name>",
-    "Assistant Professor": "<Designation>",
+    "fghdfjjkshjdhs": TEAMMATE[0],
+    "Dr. Shilpa S": GUIDE,
     "Disasters data Management System": TITLE,
     "Disasters Data Management System ": TITLE + " ",
-    ". Shilpa S, Assistant Professor ": "<Guide name>, <Designation> ",
+    ". Shilpa S, Assistant Professor ": GUIDE + ", Assistant Professor ",
 }
 
 
@@ -504,19 +569,21 @@ def build(pages):
         elif t == "Dr" and el.getparent().getnext() is not None and "Shilpa" in "".join(el.getparent().getnext().itertext()):
             el.text = ""
         elif "Dr. Shilpa S, Department" in t:
-            el.text = t.replace("Dr. Shilpa S", "<Guide name>").replace("for her continuous", "for the continuous")
+            el.text = t.replace("Dr. Shilpa S", GUIDE).replace("for her continuous", "for the continuous")
     srn = [el for el in body.iter(W) if el.text == "PES2UG19CS203"]
     for i, el in enumerate(srn):
-        el.text = "<SRN>" if i == 1 else "PES2UG24CS579"
+        el.text = TEAMMATE[1] if i == 1 else "PES2UG24CS579"
     for t in (doc.tables[2], doc.tables[4]):
-        for ci, txt in ((0, "<Team member name>"), (1, "<SRN>")):
+        for ci, txt in ((0, TEAMMATE[0]), (1, TEAMMATE[1]), (2, "<Signature>")):
+            if ci >= len(t.rows[0].cells):
+                continue
             cell = t.rows[0].cells[ci]
-            if len(cell.paragraphs) == 1:
-                p = copy.deepcopy(cell.paragraphs[0]._p)
-                cell.paragraphs[0]._p.addnext(p)
-                for r in p.iter(W):
-                    r.text = ""
-                p.findall(".//" + W)[0].text = txt
+            first = next(q for q in cell.paragraphs if q.text.strip())
+            p = copy.deepcopy(first._p)
+            first._p.addnext(p)
+            for r in p.iter(W):
+                r.text = ""
+            p.findall(".//" + W)[0].text = txt
     grid(doc.tables[0], (3.0, 2.0))
     grid(doc.tables[2], (3.0, 2.0))
     grid(doc.tables[4], (3.0, 1.8, 1.4))
@@ -675,6 +742,10 @@ def build(pages):
     heads = [t for t, _ in CH] + ["REFERENCES", "APPENDIX A: DEFINITIONS, ACRONYMS AND ABBREVIATIONS"]
     rows = toc.rows
     toc._tbl.remove(rows[-1]._tr)
+    ch9 = toc.rows[9]._tr
+    ch10 = copy.deepcopy(ch9)
+    ch9.addnext(ch10)
+    set_cell(toc.rows[10].cells[1], "CONCLUSION AND FUTURE ENHANCEMENTS")
     for row, hd in zip(toc.rows[1:], heads):
         set_cell(row.cells[-1], str(pages.get(hd, "")))
     for tbl, items in ((lot, tables), (lof, figures)):
