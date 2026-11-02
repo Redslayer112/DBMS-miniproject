@@ -718,7 +718,7 @@ def build(pages):
     h("REFERENCES", 1)
     for n, r in enumerate(REFERENCES, 1):
         para(f"[{n}] {r}")
-    para("GitHub Link: <GitHub URL>")
+    para("GitHub Link: https://github.com/Redslayer112/DBMS-miniproject")
     h("APPENDIX A: DEFINITIONS, ACRONYMS AND ABBREVIATIONS", 1)
     tb = doc.add_table(rows=len(APPENDIX), cols=2)
     tb.style = st["Table Grid"]
