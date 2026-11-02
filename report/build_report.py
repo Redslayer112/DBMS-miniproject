@@ -569,7 +569,10 @@ def build(pages):
         elif t == "Dr" and el.getparent().getnext() is not None and "Shilpa" in "".join(el.getparent().getnext().itertext()):
             el.text = ""
         elif "Dr. Shilpa S, Department" in t:
-            el.text = t.replace("Dr. Shilpa S", GUIDE).replace("for her continuous", "for the continuous")
+            el.text = t.replace("Dr. Shilpa S", GUIDE)
+    for el in body.iter(W):
+        if el.text and "UE23CS351A" in el.text:
+            el.text = el.text.replace("UE23CS351A", "UE24CSS351A")
     srn = [el for el in body.iter(W) if el.text == "PES2UG19CS203"]
     for i, el in enumerate(srn):
         el.text = TEAMMATE[1] if i == 1 else "PES2UG24CS579"
