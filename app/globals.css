@@ -37,7 +37,7 @@ button:disabled { opacity: .5; cursor: default; }
 .flash { position: fixed; bottom: 16px; right: 16px; max-width: min(420px, calc(100vw - 32px)); padding: 10px 14px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); box-shadow: 0 4px 16px #0003; }
 .bars { display: grid; gap: 6px; }
 .bar { display: grid; grid-template-columns: minmax(90px, 160px) 1fr; gap: 8px; align-items: center; font-size: 13px; }
-.bar .track { display: flex; align-items: center; gap: 6px; }
+.bar .track { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
 .bar .fill { height: 14px; background: var(--series-1); border-radius: 0 4px 4px 0; min-width: 2px; }
 .bar .fill:hover { filter: brightness(1.15); }
 a { color: var(--accent); }

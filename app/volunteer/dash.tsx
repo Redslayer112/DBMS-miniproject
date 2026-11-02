@@ -7,7 +7,7 @@ export default function Dash({ name }: { name: string }) {
   const [data, reloadData] = useData<any>('pickups');
   const [sel, setSel] = useState<number | null>(null);
   const reload = () => { reloadStats(); reloadData(); };
-  const route = (p: any) => `${p.business_name} (${p.pickup_address}) → ${p.organization_name} (${p.drop_address})`;
+  const route = (p: any) => <span title={`${p.pickup_address} → ${p.drop_address}`}>{p.business_name} → {p.organization_name}</span>;
 
   return (
     <Shell title="Volunteer dashboard" name={name}>
